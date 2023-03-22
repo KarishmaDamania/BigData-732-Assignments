@@ -1,0 +1,45 @@
+Q1) On observing the data, we can see that wordcount-5 is split unevenly, meaning some of the files had significantly more data than the rest. Since we set the number of executors = 8, each of the 8 files is assigned one of the executors meaning that the same amount of processing power. As we can see, without partitioning, the time is ... and after it is ... Thus, in this case repartitioning is more efficient because it shuffles and redistributes the data such that the executors are given data of similar size as opposed to each executor working on differently sized chunks of data. 
+
+real	11m24.905s - without partiton 
+real	7m59.637s - with 10 partitions 
+
+Q2) On observing wordcount-3, we can see that the data is more evenly split. Thus, in this case, repartitioning is not more efficient since shuffling and redistribution of data are computationally expensive operations. 
+
+Q3) Since we have observed that the unevenly distributed data input files are the reason for an increase in time, if the input files are changed such that each file holds similar amount of data, it will assign each of the files an executor and thus the same amount of processing power and thus will also rid the need for partitioning as well thus reducing the time further. 
+
+Q4) Below are the outputs when the sample size is set to 100000 and the number of partitions are increased. We can see that initally increasing the number of partitions decreases the amount of time taken, however after increasing the number of partitions further, the time starts to increase once again. As previously mentioned, shuffling and redistribution of data is computationally expensive thus increasing the number above a certain point (4 in my case) leads to an increase in the time taken. My M1 macbook has 8 cpu cores and with it, 2-4 partitions seems like the optimal number of partitions required. 
+
+Sample Size:  100000
+Eulers No: 2.72132
+Number of Partitions: 1
+8.411s total
+
+Sample Size:  100000
+Eulers No: 2.72113
+Number of Partitions: 2
+7.874s total
+
+Sample Size:  100000
+Eulers No: 2.71523
+Number of Partitions: 3
+7.804s total
+
+Sample Size:  100000
+Eulers No: 2.71784
+Number of Partitions: 4
+7.907s total
+
+Sample Size:  100000
+Eulers No: 2.71945
+Number of Partitions: 5
+8.128s total
+
+Sample Size:  100000
+Eulers No: 2.71991
+Number of Partitions: 10
+9.320 total
+
+
+
+
+

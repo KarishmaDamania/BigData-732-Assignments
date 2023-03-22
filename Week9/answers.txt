@@ -1,0 +1,130 @@
+Q1) 
+    a) Yes, from the data it can be concluded that customers from Ontario tend to put larger purchases on credit cards since the average purchase amounts made on credit cards is $131.40 and on debit cards, it is $101.06.
+
+    b) Query: 
+    SELECT PM.MTYPE, AVG(P.AMOUNT)
+    FROM CUSTOMERS C INNER JOIN PURCHASES P 
+    ON C.CUSTID = P.CUSTID 
+    INNER JOIN PAYMENTMETHODS PM ON 
+    P.PMID = PM.PMID
+    WHERE C.PROVINCE = 'ON'
+    GROUP BY PM.MTYPE;
+
+    Results: 
+    mtype   avg
+    debit	101.06
+    credit	131.40
+
+Q2)
+
+    a) Customers that are neither from Vancouver nor in the rest of BC i.e are outside BC altogether, that overall spend more since the column where from_bc_non_van = false and from_vac = false has the highest average ($112.89) and median ($33.270)
+ 
+    b) Query: 
+    CREATE VIEW vancouver_custs AS
+    WITH 
+    vprefixes (vp) AS 
+        (SELECT DISTINCT pcprefix FROM greater_vancouver_prefixes)
+    SELECT C.custid, (CASE 
+                    WHEN SUBSTRING(C.POSTALCODE, 1,3) IN (SELECT vp FROM vprefixes) 
+                    THEN 1 
+                    ELSE 0 
+                    END) AS in_vancouver
+    FROM CUSTOMERS C;
+
+    Results: 
+    A view called 'vancouver_custs' is created.
+
+    c) Query: 
+    AS From_Van,
+    COUNT(P.amount) AS COUNT,
+    AVG(P.amount) AS AVERAGE,
+    MEDIAN(P.amount) AS MEDIAN
+    FROM CUSTOMERS C
+    INNER JOIN PURCHASES P
+    ON C.custid = P.custid
+    INNER JOIN VANCOUVER_CUSTS VC
+    ON P.custid = VC.custid
+    GROUP BY From_BC_non_Van, From_Van
+    ORDER BY MEDIAN;
+
+    Results: 
+    from_bc_non_van from_van count average median
+    false	        true	 10384	86.01	27.370
+    true	        false	 3899	95.16	30.080
+    false	        false	 15717	112.89	33.270
+
+Q3) 
+    a) From the results, it is evident that tourists spend more (avg = $85.80) on Sushi than those in Vancouver (avg = $77.57)
+
+    b)  Query: 
+    WITH SUSHI (AMENID) AS 
+            (SELECT AMENID 
+            FROM AMENITIES
+            WHERE  TAGS.CUISINE ILIKE '%sushi%' 
+            AND AMENITY = 'restaurant')
+    SELECT AVG(P.AMOUNT), VC.IN_VANCOUVER
+    FROM PURCHASES P 
+    INNER JOIN VANCOUVER_CUSTS VC ON P.CUSTID = VC.CUSTID 
+    INNER JOIN SUSHI S ON P.AMENID = S.AMENID
+    GROUP BY VC.IN_VANCOUVER
+    ORDER BY VC.IN_VANCOUVER;
+    
+    Results: 
+    avg     in_vancouver
+    85.80	0
+    77.57	1
+
+Q4) 
+
+    a) The average purchase per day for the first five days in August is as below: 
+
+        pdate       avg
+        2021-08-01	96.59
+        2021-08-02	106.56
+        2021-08-03	95.87
+        2021-08-04	115.50
+        2021-08-05	95.67
+
+    b) 
+    SELECT PDATE, AVG(AMOUNT)
+    FROM PURCHASES 
+    WHERE DATE_PART(month, PDATE) = 8 AND DATE_PART(day, PDATE) < 6
+    GROUP BY PDATE
+    ORDER BY PDATE;
+
+    c) The no of bytes & no of rows are: 
+    94.06 KB
+    4703 rows
+    So the bytes/record ratio = 94.06 * 1000 / 4703 = 20
+
+    d) 
+    external_table_name                 s3_scanned_bytes  s3_scanned_rows   avg_request_parallelism   max_request_parallelism
+    S3 Subquery dev_s3ext_purchases	    267396	          4703	            1.5	                      5
+    Spectrum read 267396 bytes and scanned 4703 rows.
+    So the bytes/record ratio = 267396/4703 = 56.856
+
+
+    e) 
+    Redshit: The first thing to note is that Redshift data is stored as a single json file (synthetic-purchases.csv). Further, Redshift scans the table by filtering out the data for the five days i.e. it only reads the required columns from the rows, indicating a smaller amount of data analyzed per row i.e 94KB per row.  
+    Spectrum: On the other hand, Spectrum works with the external purchases table which is partitioned by date such that each day is processed on a different Spectrum Instance in parallel. However, as we can see from the bytes/record ratio being considerably higher in Spectrum, yet the number of rows read by Spectrum and Redshift are equal (4703 rows), from this we can understand that Spectrum reads the entire row without filtering out on the columns thus reading about 267396 bytes of data, then performs the necessary scanning, grouping and averaging to get the average purchase amounts on the required days and returns the result of this query to redshift as 120 bytes and 5 rows. 
+    
+    f) 
+    Loading the data from S3 into Redshift is beneficial when the dataset is small and well structured such that it doesnt require too much data preprocessing or ETL operations to be performed. 
+    When the dataset is small, we know that the cost of duplicating the data into the Redshift tables is less and the network costs for transferring data are not significant.
+    Further, since the data is well structured, it makes it easier and more efficient since Redshift can infer the metadata about this data quite well meaning that the user can simply load this data into Redshift and query it easily. 
+    Also, if we want only on part of data which makes useful analysis and joins, it might be a good solution to load them in redshift as they use a columnar MPP data, which makes it simple to run complex analytic queries with orders of magnitude faster performance for joins and aggregations performed
+    
+
+    g) 
+    On the other hand, Redshift Spectrum is ideally used for loading and working with large and/or unstructured datasets stored in a data lake like S3 since these benefit from parallel computing.
+    Since Spectrum allows for data that to be independently processed in parallel, we can achieve much better parallelism using S3 and querying using Spectrum. When we compare the the queries with 5 and 31 days, we can understand that for the larger subset (31 days), Spectrum intelligently scales the requests for parallelism to match the increase in data size. Spectrum is essential when parallel computing.
+    Spectrum is beneficial when working with unstructured data that does not need to be accessed multiple times; you can write an efficient query that will run and evaluate without having to copy data over to Redshift tables.
+    In cases when the data that needs to be stored can be partitioned based on date, time or any other custom keys allows Redshift Spectrum to dynamically prune non-relevant partitions to minimize the amount of data processed.
+    Further since Data in S3 can also be concurrently read by multiple sources, Redshift Spectrum elastically scales compute resources and offers significantly higher concurrency, you can run multiple Amazon Redshift clusters and query the same data in Amazon S3.
+
+
+    
+
+
+
+

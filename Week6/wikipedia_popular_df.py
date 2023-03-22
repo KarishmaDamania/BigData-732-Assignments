@@ -1,0 +1,61 @@
+import sys
+assert sys.version_info >= (3, 5) # make sure we have Python 3.5+
+
+from pyspark.sql import SparkSession, functions, types
+
+# add more functions as necessary
+
+@functions.udf(returnType = types.StringType())
+
+def path_to_hour(path):
+    timeStamp = path.split('/')[-1]
+    date = timeStamp.split('-')[1]
+    hour = timeStamp.split('-')[2][:2]
+    return (date + "-" + hour)
+
+
+def main(inputs, output):
+    pages_schema = types.StructType([
+        types.StructField('language', types.StringType()),
+        types.StructField('title', types.StringType()),
+        types.StructField('views', types.IntegerType()),
+        types.StructField('bytes', types.StringType())
+    ])
+
+    pages = spark.read.csv(inputs, schema=pages_schema, sep=" ").withColumn('filename', functions.input_file_name()).cache()
+
+    #Filter to get necessary DF
+    filter_title = pages.filter((pages.title.startswith('Special:') == False) & (pages.title.startswith('Main_Page') == False))
+    filter_lang = filter_title.filter(filter_title.language.startswith('en'))
+
+    #User Defined function to get YYYYMMDD-HH format in column 
+    path_split = functions.udf(path_to_hour, types.StringType())
+    full_df = filter_lang.withColumn("hour", path_to_hour(filter_lang.filename))
+
+    #Select necessary Columns
+    #Group by max views per day/hour
+    req_df = full_df.select(full_df.hour, full_df.title, full_df.views)
+    grouped_by_date = full_df.groupby('hour').max('views')
+
+    # print(req_df.count())
+    # print(grouped_by_date.count())
+
+    #Broadcast join grouped_by_date (count = 48) since it is a lot smaller than req_df (count = 32044)
+    #Group on max(views) and YYYYMMDD-HH 
+    #Select necessary Columns and Order by hour
+    print(grouped_by_date.count())
+    print(req_df.count())
+    joined_df = req_df.join(grouped_by_date,[req_df.hour ==  grouped_by_date.hour, req_df['views'] == grouped_by_date['max(views)']],"rightouter").select(req_df.hour, req_df.title, req_df.views).orderBy(req_df['hour'], req_df['title'])
+    joined_df.explain()
+    joined_df.write.json(output, mode='overwrite')
+
+
+
+if __name__ == '__main__':
+    inputs = sys.argv[1]
+    output = sys.argv[2]
+    spark = SparkSession.builder.appName('Wikipedia Popular Dataframes').getOrCreate()
+    assert spark.version >= '3.0' # make sure we have Spark 3.0+
+    spark.sparkContext.setLogLevel('WARN')
+    sc = spark.sparkContext
+    main(inputs, output)

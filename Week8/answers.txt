@@ -1,0 +1,78 @@
+Q1) 
+
+It gets overwritten. Cassandra does upsert. Upsert means that Cassandra will insert a row if a Primary Key doesnt already exist. If it does already exist then it will update that row. 
+From the output below, we can see that the row with id=2 already exists so its data got updated.
+
+cqlsh:kpd3> SELECT * FROM TEST;
+
+ id | data
+----+----------
+  1 |  initial
+  2 |   second
+  3 | tertiary
+
+cqlsh:kpd3> INSERT INTO TEST (ID, DATA) VALUES (2, 'double');
+cqlsh:kpd3> select * from test;
+
+ id | data
+----+----------
+  1 |  initial
+  2 |   double
+  3 | tertiary
+
+___________________________________________________________________________________________
+
+Q2) 
+
+When querying the table with its replication factor = 2 and the unreliable node is down, we can query whatever we want since two copies of the data were made and sent to each node. Since (the consistency is by default set to 1 thus) we require only a single node to be having the data and being active for reading and writing operations to take place, we dont face any issues.
+Furher, even when the replication factor = 1 and the unreliable node is active, we can still query the data as needed. 
+
+However, when the replication factor = 1 and the node is down, we cannot perform any queries and the following is the error:
+"NoHostAvailable: ('Unable to complete the operation against any hosts', {<Host: 10.17.203.211:9042 datacenter1>: Unavailable('Error from server: code=1000 [Unavailable exception] message="Cannot achieve consistency level ONE" info={\'consistency\': \'ONE\', \'required_replicas\': 1, \'alive_replicas\': 0}')})"
+From the error, we understand that the required_replicas = 1 and the alive_replicas = 0 meaning that since only one copy of the data was made (and stored on the unreliable node) and the node is down, we are not able to query any data.
+
+___________________________________________________________________________________________
+
+Q3) 
+
+When the consistency level = ONE, it means that atleast one node must be available for the data being read or written.
+Thus, when the replication factor is greater than 1, we have no issues querying the data even when the unreliable node is down since the required_replicas = 1 and as long as one of the replica nodes is alive and running, we can read and write the data as we want.
+
+However when the consistentency level = ALL, and the replication factor = 2, we will not be able to write or read the data since it requires all the replica nodes to be active. Thus when the unreliable node is down we get the following error while reading and writing:
+
+Error while Reading: NoHostAvailable: ('Unable to complete the operation against any hosts', {<Host: 10.17.203.211:9042 datacenter1>: Unavailable('Error from server: code=1000 [Unavailable exception] message="Cannot achieve consistency level ALL" info={\'consistency\': \'ALL\', \'required_replicas\': 2, \'alive_replicas\': 1}')})
+Error while Writing:Write error - NoHostAvailable: ('Unable to complete the operation against any hosts', {})
+
+___________________________________________________________________________________________
+
+Q4) 
+
+With the CONSISTENCY ALL statement, the rows with id = 1,4,5 were returned successfully when the unreliable node was down. This could be because Cassandra could not achieve CONSISTENCY ALL for rows 2,3 since the replicas might have been stored on the node that was down (unreliable3.local) hence returning the error. 
+
+___________________________________________________________________________________________
+
+Q5) 
+
+
+   CREATE TABLE nasalogs 
+  (
+   uid UUID, 
+   host TEXT, 
+   datetime TIMESTAMP, 
+   path TEXT, 
+   bytes INT, 
+   PRIMARY KEY(host, uid) 
+   );
+
+Here I chose the host and the uid column to create the Primary Key. 
+Justification: We know that that the first component of the Primary Key acts as the Partition Key i.e. determines the node(s) that the data will be stored by. Since we are to perform aggregation by 'host' in the correlation task, it would be useful to keep data we want to operate on together so it can be fetched together, thus reducing the number of shuffle operations to bring and group the hosts together, making the program more efficient in terms of time taken and computational cost. The uid was chosen as the second component in the Primary Key since the overall Primary Key needs to be unique. The uid is generated using the UUID() (universally unique identifier) function which generates an unique identifier with a very low probability of being repeated thus making it ideal to use as make the overall primary key unique. 
+___________________________________________________________________________________________
+
+Q6) 
+
+The total number of bytes can be found by the sum(bytes) method. However, the operation times out. 
+
+cqlsh:kpd3> select sum(bytes) from nasalogs;
+
+ReadTimeout: Error from server: code=1200 [Coordinator node timed out waiting for replica nodes' responses] message="Operation timed out - received only 0 responses." info={'consistency': 'ONE', 'required_responses': 1, 'received_responses': 0}
+___________________________________________________________________________________________

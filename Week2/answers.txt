@@ -1,0 +1,12 @@
+﻿Q1) We could do this by changing the value to type to ArrayWritable to hold both the title and view count of the most frequently accessed page, or alternatively we could also write up our own writable datatype to use. 
+
+
+Q2) The most notable difference between .map() and .flatMap() is that .map() will transform each value of a stream into a value and then convert it into another stream i.e. it transforms into a single value, thus having one-to-one mapping of the input and output value. On the other hand, .flatMap() is used to map and flatten the nested collected or stream i.e it is a combination of transformation and flattening, thus having one-to-many mapping. 
+.map() would be more similar to the MapReduce concept of mapping since it returns a one-to-one mapping, similar to MapReduce where everything needs to be in the form of key value pairs. 
+
+
+Q3) reduce() is an action that operates on an RDD of objects whereas reduceByKey is a transformation that operates on an RDD of key-value pairs. reduce() reduces to one single value i.e. if takes two arguments then returns one whereas reduceByKey() reduces one value for each key i.e. when called on a dataset of key-value pairs, returns a dataset of key-value pairs. 
+Since the MapReduce concept of reducing works with key-value pairs, reduceByKey() is more similar to it.  
+
+
+Q4) To implement this, we could perform another round of reduceByKey() on the previously obtained output i.e (Hours, (Page_name, ViewCount)), this time using the Page_Name as key to find the maximum thus giving the final output as the unique values of each one of them.

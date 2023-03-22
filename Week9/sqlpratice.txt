@@ -1,0 +1,63 @@
+SELECT COUNT(*) FROM CUSTOMERS;
+10000
+
+
+SELECT COUNT(*) FROM PURCHASES;
+30000
+
+
+SELECT COUNT(*) FROM PAYMENTMETHODS;
+15001
+
+
+SELECT COUNT(*) FROM AMENITIES;
+17718
+
+
+SELECT AMENITY, COUNT(AMENITY) 
+FROM AMENITIES 
+GROUP BY AMENITY;
+amenity count
+cafe	1066
+toilets	552
+fuel	202
+bicycle_parking	1423
+school	71
+dentist	248
+doctors	99
+public_building	1
+pharmacy	311
+fast_food	1147
+
+
+SELECT mtype, COUNT(mtype) 
+FROM paymentmethods 
+GROUP BY mtype;
+credit	7474
+debit	7527
+
+
+SELECT min(pdate), max(pdate)
+FROM purchases;
+min         max
+2021-08-01	2021-08-31
+
+
+SELECT PROVINCE, COUNT(CUSTID) FROM CUSTOMERS
+GROUP BY PROVINCE ;
+province count
+ON	2348
+BC	4765
+SK	196
+QC	1394
+NB	119
+AB	683
+NS	165
+NT	11
+MB	202
+YT	4
+
+SELECT AVG(AMOUNT) AS AVERAGE, MEDIAN(AMOUNT) AS MEDIAN 
+FROM PURCHASES;
+average median
+101.28	30.720

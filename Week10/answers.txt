@@ -1,0 +1,125 @@
+Q1) 
+
+On Topic xy-1 with timeout = 200: 
+Batch: 190
++-----------------+-------------------+
+|            slope|          intercept|
++-----------------+-------------------+
+|2.768473417382865|-20.725793174692605|
++-----------------+-------------------+
+
+On Topic xy-10 with timeout = 200:
+Batch: 594
+-------------------------------------------
++------------------+-------------------+
+|             slope|          intercept|
++------------------+-------------------+
+|2.7664455931359964|-20.450293754728694|
++------------------+-------------------+
+
+On Topic xy-5 with timeout = 200: 
+-------------------------------------------
+Batch: 153
+-------------------------------------------
++------------------+-------------------+
+|             slope|          intercept|
++------------------+-------------------+
+|2.7686661229703597|-20.367000142143723|
++------------------+-------------------+
+
+Q2)
+
+Yes, the program's estimate of the slope and intercept are getting better overtime. This can be understood since we can observe while the programme runs that the changes in slope and intercept values initially are larger than those made as the programme continues running indicating that the values are converging to the optimal values. 
+Thus yes the slope and intercept are being aggregated from the start of time. This can also be observed by printing the entire table and noticing that the n value aggregates as it runs thus showing that the slopes and intercepts are being calculated by aggregating all of the data from the start:
+
+-------------------------------------------
+Batch: 91
+-------------------------------------------
++------------------+-----------------+--------------------+-------------------+--------------------+---+-----------------+-------------------+
+|                 x|                y|                  xy|               x**2|                y**2|  n|            slope|          intercept|
++------------------+-----------------+--------------------+-------------------+--------------------+---+-----------------+-------------------+
+|2153.0260771437265|4132.705977441224|5.3995997923280485E7|1.952092811402662E7|1.4939983708514085E8| 99|2.768092389279182|-18.455243642625646|
++------------------+-----------------+--------------------+-------------------+--------------------+---+-----------------+-------------------+
+
+
+Q3) 
+Validation score for RGB model: 0.580346
+Validation score for RGB model: 0.701007
+
+Q4)
+From the results below, we can conclude that WEATHER-MODEL-1-WITHOUT-YEST trained on tmax-1 definitely overfit the training data since the r2 and rmse scores on the testing data tmax-test are significantly lesser than that of tmax-1 indicating that the model is not able to generalize very well on previously unseen data. 
+On the other hand, WEATHER-MODEL-2-WITHOUT-YEST was able to perform well on both the training and well as testing sets. 
+TMAX-1 TRAIN WEATHER-MODEL-1-WITHOUT-YEST
+spark-submit weather_train.py tmax-1/ weather-model-1-without-yest
+r2 =  0.8614320078915869
+rmse =  4.602653994047481
+
+TMAX-1 TEST WEATHER-MODEL-1-WITHOUT-YEST
+spark-submit weather_test.py weather-model-1-without-yest tmax-test
+r2 = 0.3574829260481007
+rmse = 10.397155700466957
+
+TMAX-2 TRAIN WEATHER-MODEL-2-WITHOUT-YEST
+spark-submit weather_train.py tmax-2/ weather-model-2-without-yest
+r2 =  0.8347290984151597
+rmse =  5.264820542645202
+TMAX-2 TEST WEATHER-MODEL-2-WITHOUT-YEST
+spark-submit weather_test.py weather-model-2-without-yest tmax-test
+r2 = 0.8102712259891632
+rmse = 5.649874636155516
+
+
+Q5) 
+The results before including yesterdays features:
+TMAX-1 TRAIN WEATHER-MODEL-1-WITHOUT-YEST
+spark-submit weather_train.py tmax-1/ weather-model-1-without-yest
+r2 =  0.8614320078915869
+rmse =  4.602653994047481
+
+TMAX-1 TEST WEATHER-MODEL-1-WITHOUT-YEST
+spark-submit weather_test.py weather-model-1-without-yest tmax-test
+r2 = 0.3574829260481007
+rmse = 10.397155700466957
+
+TMAX-2 TRAIN WEATHER-MODEL-2-WITHOUT-YEST
+spark-submit weather_train.py tmax-2/ weather-model-2-without-yest
+r2 =  0.8347290984151597
+rmse =  5.264820542645202
+TMAX-2 TEST WEATHER-MODEL-2-WITHOUT-YEST
+spark-submit weather_test.py weather-model-2-without-yest tmax-test
+r2 = 0.8102712259891632
+rmse = 5.649874636155516
+
+
+The results after including yesterdays features:
+TMAX-1 TRAIN WEATHER-MODEL-1
+spark-submit weather_train.py tmax-1/ weather-model-1
+r2 =  0.9069810019863377
+rmse =  3.896472863487992
+
+TMAX-TEST TEST WEATHER-MODEL-1
+spark-submit weather_test.py weather-model-1 tmax-test
+r2 = 0.813921834927287
+rmse = 5.576992572336801
+
+TMAX-2 TRAIN WEATHER-MODEL-2
+spark-submit weather_train.py tmax-2/ weather-model-2
+r2 =  0.9165920677331678
+rmse =  3.733461418671282
+
+TMAX-TEST TEST WEATHER-MODEL-2
+spark-submit weather_test.py weather-model-2 tmax-test
+r2 = 0.9130909437609681
+rmse = 3.8114030363129263
+
+
+Q6) 
+Without the yesterday features, the feature weights are as below:
+spark-submit weather_test.py weather-model-1-without-yest tmax-1
+(4,[0,1,2,3],[0.3071671649712675,0.14846955607639226,0.06841020498465038,0.4759530739676899])
+
+With the yesterday features, the feature weights are as below:
+spark-submit weather_test.py weather-model-1 tmax-1
+(5,[0,1,2,3,4],[0.05522414422722171,0.05736883230558013,0.03647566862418096,0.10266012403871953,0.7482712308042977])
+
+Since the last value corresponds to the previous day's tmax, we can understand that significant weightage has been assigned to it, but since the value = 0.74827 and not 1, it is not predicting the same as yesterday and is still using the latitude, longitude, elevation, tmax (today's) as part of its decision making process as well.

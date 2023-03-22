@@ -1,0 +1,17 @@
+Q1) The following are the results after running the code with and without .cache(): 
+25.22s user 4.94s system 171% cpu 17.571 total - without .cache()
+21.56s user 4.28s system 176% cpu 14.645 total - with .cache()
+Since we know that the records will be called multiple times for /negative and /positive directories, it is preferrable to use cache since the .saveAsTextFile runs the entire DAG again on each execution. 
+But since we know this, using the .cache() function implies that the RDD will be created once and reused from the cache memory, instead of being created repeatedly each time, and hence there is a reduction in the time taken for execution. 
+
+
+Q2) Since caching involves writing on the disk as opposed to doing everything in memory, .cache() would lead to the program being slower when we are not necessarily using the large RDD repeatedly in the rest of the code or when you dont require the temporary intermediate results to be stored.
+
+
+Q3) In the case such as the one in the assignemnt, i.e. where the RDD containing the averages is quite small and the comments RDD is very large, broadcast join is much faster than using an inner join because it eliminates making additional copies of the information (as would be the case if we used an inner join). Instead, sc.broadcast() broadcasts a value that is sent to and used by each executor. Thus when joining a small RDD with a sizeably large one, it is much more computationally efficient to use the broadcast join to broadcast the smaller RDD to avoid redundant copies of information. 
+As we can see from the time below taken when executing using .join and broadcast join, the broadcast join is a lot more efficient. 
+
+with .join() - 7.2mins
+with sc.broadcast - 55s
+
+Q3) When the RDD that is being broadcast is very large or sizeable to the other RDD, then in that case sending such a large RDD to each executor is computationally expensive and would take longer to execute. In such a case,using .join() would be better. 

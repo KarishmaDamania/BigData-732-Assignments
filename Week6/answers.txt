@@ -1,0 +1,82 @@
+Q1) From the physical plan: 
+== Physical Plan ==
+AdaptiveSparkPlan isFinalPlan=false
++- HashAggregate(keys=[subreddit#18], functions=[avg(score#16L)])
+   +- Exchange hashpartitioning(subreddit#18, 200), ENSURE_REQUIREMENTS, [id=#11]
+      +- HashAggregate(keys=[subreddit#18], functions=[partial_avg(score#16L)])
+         +- FileScan json [score#16L,subreddit#18] Batched: false, DataFilters: [], Format: JSON, Location: InMemoryFileIndex(1 paths)[file:/Users/karishmadamania/Desktop/BigDataFiles/Week6/reddit-1], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<score:bigint,subreddit:string>
+
+We can see that the only fields loaded are the score and the subreddit name. The average is calculated in three steps. Here the first HashAggregate step is the combiner like step since it performs aggregation (i.e GroupBy) locally for the sum and count in the partial_avg() function. After this the shuffling and sorting takes place and the final average of the score is calculated as per the avg() function.  
+
+Q2) The time taken for running each of the codes on reddit-6 are as follows:
+
+#MapReduce
+real 4m8.1764s
+user 0m10.131s
+sys 0m1.432s
+
+#Spark DataFrames (with CPython)
+real 2m4.653s
+user 0m34.134s
+sys 0m3.572s
+
+#Spark RDDs (with CPython)
+real 2m19.131s
+user 0m24.374s
+sys 0m2.274s
+
+#Spark DataFrames (with PyPy)
+real 2m2.235s
+user 0m35.735s
+sys 0m3.854s  
+
+#Spark RDDs (with PyPy)
+real 1m28.034s
+user 0m27.762s
+sys 0m2.247s
+
+RDDs and Dataframes are both Python Objects when we write the code. CPython words by compiling the Python code to intermediate bytecode and it is then interpreted by a virtual machine. Meanwhile PyPy converts it into machine-native assembly language. Because of this PyPy can execute Python code much more efficiently. However, PyPy does not have good support for Python C extensions such as DataFranes and thus the CPython interpreter which does support those extensions are used. Further, PyPy optimizes the code whereas Spark Dataframes have an inbuilt optimizer. Thus since RDDs are more compatible with PyPy, we see the considerable time reduction in using PyPy with RDDs whereas since Dataframes are less compatible, there is not much difference.
+
+
+Q3)
+
+The results of running on Pagecount-3 are as follows: 
+Without Broadcast:
+real    2m25.769s
+user    0m57.376s
+sys     0m5.422s
+
+With Broadcast:
+real    1m37.313s
+user    0m53.554s
+sys     0m4.420s
+
+As we can see from the above data, the broadcast function reduces the computational time by a few seconds. Since the dataframe that contains the groupedBy date data is much smaller (count = 48 on pagecounts-1) as compared to the datafrane with which it is being joined (count = 32044 on pagecount-1), it is efficient to broadcast the groupedBy date dataframe. 
+
+Q4) 
+
+Without Broadcast: 
+== Physical Plan ==
+AdaptiveSparkPlan isFinalPlan=false
++- Sort [hour#41 ASC NULLS FIRST, title#1 ASC NULLS FIRST], true, 0
+   +- Exchange rangepartitioning(hour#41 ASC NULLS FIRST, title#1 ASC NULLS FIRST, 200), ENSURE_REQUIREMENTS, [id=#245]
+      +- Project [hour#41, title#1, views#2]
+         +- SortMergeJoin [hour#41, views#2], [hour#335, max(views)#58], RightOuter
+            :- Sort [hour#41 ASC NULLS FIRST, views#2 ASC NULLS FIRST], false, 0
+            :  +- Exchange hashpartitioning(hour#41, views#2, 200), ENSURE_REQUIREMENTS, [id=#238]
+            :     +- Project [pythonUDF0#451 AS hour#41, title#1, views#2]
+
+
+With Broadcast: 
+== Physical Plan ==
+AdaptiveSparkPlan isFinalPlan=false
++- Sort [hour#41 ASC NULLS FIRST, title#1 ASC NULLS FIRST], true, 0
+   +- Exchange rangepartitioning(hour#41 ASC NULLS FIRST, title#1 ASC NULLS FIRST, 200), ENSURE_REQUIREMENTS, [id=#241]
+      +- Project [hour#41, title#1, views#2]
+         +- BroadcastHashJoin [hour#41, views#2], [hour#335, max(views)#58], RightOuter, BuildLeft, false
+            :- BroadcastExchange HashedRelationBroadcastMode(List(input[0, string, true], input[2, int, true]),false), [id=#237]
+            :  +- Project [pythonUDF0#451 AS hour#41, title#1, views#2]
+   
+As we can see the difference in two plans is that with broadcast, the BroadcastHasJoin step is performed wherein a copy of the broadcasted dataset is sent to all the executor nodes in the spark cluster hence reducing the following data shuffle operations, and in the plan while setting autoBroadcast to -1, the SortMergeJoin step is performed which requires a large number of data shuffling and memory I/O operations thus leading to the increase in time. 
+
+Q5) Writing in DataFrames + Python methods produces much more cleaner and readble code since Spark provides us with a simple and easy-to-read set of API calls making it much better to do, than to repeatedly create temporary tables and use SQL Syntax.
